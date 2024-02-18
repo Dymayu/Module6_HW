@@ -1,63 +1,27 @@
 import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.sql.*;
 
 public class DatabaseInitService {
 
-    public void executeFile(String path) throws IOException, SQLException {
-        Connection conn = Database.getInstance().getConnection();
+    public void executeFile(String path) throws IOException {
 
-        FileReader reader = new FileReader(path);
-        BufferedReader bufferedReader = new BufferedReader(reader);
-        Statement statement = conn.createStatement();
+        try (Connection conn = Database.getInstance().getConnection();
+             Statement statement = conn.createStatement();) {
 
-        System.out.println("Executing commands at : " + path);
+            String query = new String(Files.readAllBytes(Paths.get(path)));
+            String[] commands = query.split(";",0);
 
-        StringBuilder builder = new StringBuilder();
+            for (String sqlCommand: commands){
+                statement.executeUpdate(sqlCommand);
+                System.out.println("Sql Command: " + sqlCommand);
+                System.out.println("Table is successfully created! \n");
+            }
 
-        String line;
-        int lineNumber = 0;
-        int count = 0;
-
-        // Read lines from the SQL file until the end of the
-        // file is reached.
-        while ((line = bufferedReader.readLine()) != null) {
-            lineNumber += 1;
-            line = line.trim();
-
-            // Skip empty lines and single-line comments.
-            if (line.isEmpty() || line.startsWith("--"))
-                continue;
-
-            builder.append(line);
-            // If the line ends with a semicolon, it
-            // indicates the end of an SQL command.
-            if (line.endsWith(";"))
-                try {
-                    // Execute the SQL command
-                    statement.execute(builder.toString());
-                    // Print a success message along with
-                    // the first 15 characters of the
-                    // executed command.
-                    System.out.println(
-                            ++count
-                                    + " Command successfully executed : "
-                                    + builder.substring(
-                                    0,
-                                    Math.min(builder.length(), 15))
-                                    + "...");
-                    builder.setLength(0);
-                }
-                catch (SQLException e) {
-                    // If an SQLException occurs during
-                    // execution, print an error message and
-                    // stop further execution.
-                    System.err.println(
-                            "At line " + lineNumber + " : "
-                                    + e.getMessage() + "\n");
-                    return;
-                }
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
         }
-
     }
 
     public static void main(String[] args) throws IOException, SQLException {
